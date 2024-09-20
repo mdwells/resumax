@@ -219,93 +219,97 @@
 
         window.addEventListener('load', loadDefaultInputs);
 
-        submitButton.addEventListener('click', async function() {
-            const jobDescription = document.getElementById('jobDescription').value;
-            const linkedinProfile = document.getElementById('linkedinProfile').value;
+submitButton.addEventListener('click', async function() {
+    const jobDescription = document.getElementById('jobDescription').value;
+    const linkedinProfile = document.getElementById('linkedinProfile').value;
 
-            if (!jobDescription || !linkedinProfile) {
-                alert('Please fill in both fields.');
-                return;
-            }
+    if (!jobDescription || !linkedinProfile) {
+        alert('Please fill in both fields.');
+        return;
+    }
 
-            submitButton.disabled = true;
-            submitButton.textContent = 'Processing...';
-            loadingDiv.style.display = 'block';
-            outputDiv.innerHTML = '';
-            rawJsonOutput.innerHTML = '';
+    submitButton.disabled = true;
+    submitButton.textContent = 'Processing...';
+    loadingDiv.style.display = 'block';
+    outputDiv.innerHTML = '';
+    rawJsonOutput.innerHTML = '';
 
-            const data = {
-                jobDescription: jobDescription,
-                linkedinProfile: linkedinProfile
-            };
+    const data = {
+        jobDescription: jobDescription,
+        linkedinProfile: linkedinProfile
+    };
 
-            const transaction = {
-                timestamp: new Date().toISOString(),
-                request: {
-                    url: '/.netlify/functions/generate-resume',
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                },
-                response: null
-            };
+    const transaction = {
+        timestamp: new Date().toISOString(),
+        request: {
+            url: '/.netlify/functions/generate-resume',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        },
+        response: null
+    };
 
-            try {
-                const response = await fetch('/.netlify/functions/generate-resume', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                const responseData = await response.json();
-
-                transaction.response = {
-                    status: response.status,
-                    statusText: response.statusText,
-                    headers: Object.fromEntries(response.headers.entries()),
-                    body: responseData
-                };
-
-                transactions.push(transaction);
-                updateTransactionHistory();
-
-                loadingDiv.style.display = 'none';
-                submitButton.disabled = false;
-                submitButton.textContent = 'Generate Resume';
-
-                modal.style.display = 'block';
-
-                outputDiv.innerHTML = `
-                    <h2>Resume Generation Initiated</h2>
-                    <p>${responseData.message}</p>
-                    <p>${responseData.estimatedCompletionTime}</p>
-                `;
-                
-                console.log('Transactions Array:', transactions);
-            } catch (error) {
-                transaction.response = {
-                    error: error.message
-                };
-                transactions.push(transaction);
-                updateTransactionHistory();
-
-                loadingDiv.style.display = 'none';
-                submitButton.disabled = false;
-                submitButton.textContent = 'Generate Resume';
-
-                outputDiv.innerHTML = `
-                    <h2>Error</h2>
-                    <p>An error occurred while processing your request. Please try again later.</p>
-                    <p>Error details: ${error.message}</p>
-                `;
-                
-                console.log('Transactions Array:', transactions);
-            }
+    try {
+        const response = await fetch('/.netlify/functions/generate-resume', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const responseData = await response.json();
+
+        transaction.response = {
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries(response.headers.entries()),
+            body: responseData
+        };
+
+        transactions.push(transaction);
+        updateTransactionHistory();
+
+        loadingDiv.style.display = 'none';
+        submitButton.disabled = false;
+        submitButton.textContent = 'Generate Resume';
+
+        modal.style.display = 'block';
+
+        outputDiv.innerHTML = `
+            <h2>Resume Generation Initiated</h2>
+            <p>${responseData.message}</p>
+            <p>${responseData.estimatedCompletionTime}</p>
+        `;
+        
+        console.log('Transactions Array:', transactions);
+    } catch (error) {
+        transaction.response = {
+            error: error.message
+        };
+        transactions.push(transaction);
+        updateTransactionHistory();
+
+        loadingDiv.style.display = 'none';
+        submitButton.disabled = false;
+        submitButton.textContent = 'Generate Resume';
+
+        outputDiv.innerHTML = `
+            <h2>Error</h2>
+            <p>An error occurred while processing your request. Please try again later.</p>
+            <p>Error details: ${error.message}</p>
+        `;
+        
+        console.error('Error in resume generation:', error);
+    }
+});
 
         function updateTransactionHistory() {
             transactionHistory.innerHTML = transactions.map(t => `
