@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+const https = require('https');
 
 exports.handler = async function(event, context) {
   if (event.httpMethod !== 'POST') {
@@ -8,22 +8,53 @@ exports.handler = async function(event, context) {
   try {
     const { linkedinProfile, jobDescription } = JSON.parse(event.body);
 
-    const response = await fetch('https://hook.us2.make.com/fzgdwjea416kn74694x7it4awaeeapen', {
+    const data = JSON.stringify({
+      linkedinProfile,
+      jobDescription
+    });
+
+    const options = {
+      hostname: 'hook.us2.make.com',
+      port: 443,
+      path: '/fzgdwjea416kn74694x7it4awaeeapen',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ linkedinProfile, jobDescription }),
-    });
+        'Content-Length': data.length
+      }
+    };
 
-    const data = await response.json();
+    const response = await new Promise((resolve, reject) => {
+      const req = https.request(options, (res) => {
+        let responseBody = '';
+
+        res.on('data', (chunk) => {
+          responseBody += chunk;
+        });
+
+        res.on('end', () => {
+          resolve({
+            statusCode: res.statusCode,
+            headers: res.headers,
+            body: responseBody
+          });
+        });
+      });
+
+      req.on('error', (error) => {
+        reject(error);
+      });
+
+      req.write(data);
+      req.end();
+    });
 
     return {
       statusCode: 200,
       body: JSON.stringify({
         message: 'Resume generation request received',
         estimatedCompletionTime: '5 minutes',
-        hookResponse: data
+        hookResponse: JSON.parse(response.body)
       }),
     };
   } catch (error) {
