@@ -29,18 +29,19 @@
             margin-top: 10px;
             font-weight: bold;
         }
-        input[type="url"] {
+        textarea {
             width: 100%;
+            height: 150px;
             padding: 8px;
             margin-top: 5px;
             border: 1px solid #ddd;
             border-radius: 4px;
             box-sizing: border-box;
+            resize: vertical;
         }
         button {
-            display: block;
-            width: 100%;
-            margin-top: 20px;
+            display: inline-block;
+            margin-top: 10px;
             padding: 10px;
             background-color: #4CAF50;
             color: white;
@@ -58,6 +59,13 @@
         button:disabled {
             background-color: #cccccc;
             cursor: not-allowed;
+        }
+        .clear-button {
+            background-color: #f44336;
+            margin-left: 10px;
+        }
+        .clear-button:hover {
+            background-color: #d32f2f;
         }
         #resumeOutput, #rawJsonOutput {
             margin-top: 20px;
@@ -143,11 +151,13 @@
     <div class="container">
         <h1>Resume Generator</h1>
         <div>
-            <label for="linkedinProfile">LinkedIn Profile URL:</label>
-            <input type="url" id="linkedinProfile" name="linkedinProfile" value="https://www.linkedin.com/in/martindwells/" required>
+            <label for="jobDescription">Job Description:</label>
+            <textarea id="jobDescription" name="jobDescription" required></textarea>
+            <button class="clear-button" onclick="clearField('jobDescription')">Clear</button>
             
-            <label for="jobDescription">Job Description URL:</label>
-            <input type="url" id="jobDescription" name="jobDescription" value="https://www.linkedin.com/jobs/view/4016982620" required>
+            <label for="linkedinProfile">LinkedIn Profile:</label>
+            <textarea id="linkedinProfile" name="linkedinProfile" required></textarea>
+            <button class="clear-button" onclick="clearField('linkedinProfile')">Clear</button>
             
             <button id="submitButton">Generate Resume</button>
         </div>
@@ -182,12 +192,39 @@
 
         let transactions = [];
 
-        submitButton.addEventListener('click', async function() {
-            const linkedinProfile = document.getElementById('linkedinProfile').value;
-            const jobDescription = document.getElementById('jobDescription').value;
+        function clearField(fieldId) {
+            document.getElementById(fieldId).value = '';
+        }
 
-            if (!linkedinProfile || !jobDescription) {
-                alert('Please fill in both URL fields.');
+        async function loadTextFile(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return await response.text();
+            } catch (error) {
+                console.error("Could not load file:", error);
+                return "";
+            }
+        }
+
+        async function loadDefaultInputs() {
+            const jobDescriptionTextarea = document.getElementById('jobDescription');
+            const linkedinProfileTextarea = document.getElementById('linkedinProfile');
+
+            jobDescriptionTextarea.value = await loadTextFile('jd.txt');
+            linkedinProfileTextarea.value = await loadTextFile('profile.txt');
+        }
+
+        window.addEventListener('load', loadDefaultInputs);
+
+        submitButton.addEventListener('click', async function() {
+            const jobDescription = document.getElementById('jobDescription').value;
+            const linkedinProfile = document.getElementById('linkedinProfile').value;
+
+            if (!jobDescription || !linkedinProfile) {
+                alert('Please fill in both fields.');
                 return;
             }
 
@@ -198,8 +235,8 @@
             rawJsonOutput.innerHTML = '';
 
             const data = {
-                linkedinProfile: linkedinProfile,
-                jobDescription: jobDescription
+                jobDescription: jobDescription,
+                linkedinProfile: linkedinProfile
             };
 
             const transaction = {
