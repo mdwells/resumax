@@ -6,3 +6,9 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Ensure text files are served with correct MIME type
+[[headers]]
+  for = "/*.txt"
+  [headers.values]
+    Content-Type = "text/plain"
