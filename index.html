@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        input[type="url"] {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            display: block;
+            width: 100%;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:active {
+            background-color: #3e8e41;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #resumeOutput, #rawJsonOutput {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            min-height: 200px;
+            background-color: #fff;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        #loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 800px;
+            border-radius: 5px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #transactionHistory {
+            margin-top: 20px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .transaction {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .transaction pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Resume Generator</h1>
+        <div>
+            <label for="linkedinProfile">LinkedIn Profile URL:</label>
+            <input type="url" id="linkedinProfile" name="linkedinProfile" required>
+            
+            <label for="jobDescription">Job Description URL:</label>
+            <input type="url" id="jobDescription" name="jobDescription" required>
+            
+            <button id="submitButton">Generate Resume</button>
+        </div>
+        
+        <div id="loading">
+            <div class="spinner"></div>
+            <p>Processing your request. Please wait...</p>
+        </div>
+        <div id="resumeOutput"></div>
+        
+        <button id="showRawJsonButton">Show Raw Transactions JSON</button>
+        <div id="rawJsonOutput"></div>
+    </div>
+
+    <div id="transactionModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Transaction History</h2>
+            <div id="transactionHistory"></div>
+        </div>
+    </div>
+
+    <script>
+        const submitButton = document.getElementById('submitButton');
+        const loadingDiv = document.getElementById('loading');
+        const outputDiv = document.getElementById('resumeOutput');
+        const modal = document.getElementById('transactionModal');
+        const closeModal = document.getElementsByClassName('close')[0];
+        const transactionHistory = document.getElementById('transactionHistory');
+        const showRawJsonButton = document.getElementById('showRawJsonButton');
+        const rawJsonOutput = document.getElementById('rawJsonOutput');
+
+        let transactions = [];
+
+        submitButton.addEventListener('click', async function() {
+            const linkedinProfile = document.getElementById('linkedinProfile').value;
+            const jobDescription = document.getElementById('jobDescription').value;
+
+            if (!linkedinProfile || !jobDescription) {
+                alert('Please fill in both URL fields.');
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Processing...';
+            loadingDiv.style.display = 'block';
+            outputDiv.innerHTML = '';
+            rawJsonOutput.innerHTML = '';
+
+            const data = {
+                linkedinProfile: linkedinProfile,
+                jobDescription: jobDescription
+            };
+
+            const transaction = {
+                timestamp: new Date().toISOString(),
+                request: {
+                    url: '/.netlify/functions/generate-resume',
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                },
+                response: null
+            };
+
+            try {
+                const response = await fetch('/.netlify/functions/generate-resume', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const responseData = await response.json();
+
+                transaction.response = {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries(response.headers.entries()),
+                    body: responseData
+                };
+
+                transactions.push(transaction);
+                updateTransactionHistory();
+
+                loadingDiv.style.display = 'none';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Generate Resume';
+
+                modal.style.display = 'block';
+
+                outputDiv.innerHTML = `
+                    <h2>Resume Generation Initiated</h2>
+                    <p>${responseData.message}</p>
+                    <p>${responseData.estimatedCompletionTime}</p>
+                `;
+                
+                console.log('Transactions Array:', transactions);
+            } catch (error) {
+                transaction.response = {
+                    error: error.message
+                };
+                transactions.push(transaction);
+                updateTransactionHistory();
+
+                loadingDiv.style.display = 'none';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Generate Resume';
+
+                outputDiv.innerHTML = `
+                    <h2>Error</h2>
+                    <p>An error occurred while processing your request. Please try again later.</p>
+                    <p>Error details: ${error.message}</p>
+                `;
+                
+                console.log('Transactions Array:', transactions);
+            }
+        });
+
+        function updateTransactionHistory() {
+            transactionHistory.innerHTML = transactions.map(t => `
+                <div class="transaction">
+                    <h3>Transaction at ${t.timestamp}</h3>
+                    <h4>Request:</h4>
+                    <pre>${JSON.stringify(t.request, null, 2)}</pre>
+                    <h4>Response:</h4>
+                    <pre>${JSON.stringify(t.response, null, 2)}</pre>
+                </div>
+            `).join('');
+        }
+
+        showRawJsonButton.addEventListener('click', function() {
+            rawJsonOutput.textContent = JSON.stringify(transactions, null, 2);
+        });
+
+        closeModal.onclick = function() {
+            modal.style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
